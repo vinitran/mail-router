@@ -168,8 +168,12 @@ sent again, unchanged, through the remaining `EMAIL_PROVIDER` entries and
 then through `EMAIL_PROVIDER_FALLBACK`, in order. The result names the
 provider that accepted it, and the error of a message every provider
 refused lists them all (`providers tried: brevo quota_exceeded, sendgrid
-rate_limited`). Permanent and invalid-recipient errors are returned at
-once: another provider would reject them too.
+rate_limited`). Permanent errors move on too: they are usually about one
+provider's account (a revoked API key, a server IP that Brevo does not
+allow, a sender not verified at that provider), and the message was not
+accepted, so the next provider cannot send it twice. Only an
+invalid-recipient error is returned at once: another provider would
+reject it too.
 
 A provider that reported `ErrQuotaExceeded` is skipped for
 `EMAIL_PROVIDER_COOLDOWN` (30 minutes by default): it is tried only after

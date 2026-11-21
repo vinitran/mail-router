@@ -77,8 +77,13 @@ func IsRetryable(err error) bool {
 }
 
 // ShouldFailover reports whether another provider may accept the message.
+// Only an invalid recipient is final: a permanent error from one provider
+// (revoked API key, IP not allowed, sender not verified there) is usually
+// about that provider's account, and the message was not accepted, so
+// trying the next provider cannot send it twice. Messages that no provider
+// should send are rejected by Validate before they reach a provider.
 func ShouldFailover(err error) bool {
-	return errors.Is(err, ErrRateLimited) || errors.Is(err, ErrQuotaExceeded) || errors.Is(err, ErrTemporary)
+	return err != nil && !errors.Is(err, ErrInvalidRecipient)
 }
 
 // ClassName is a short label for logs and metrics.

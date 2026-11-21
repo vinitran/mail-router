@@ -46,10 +46,10 @@ type RouterOptions struct {
 }
 
 // Router sends each message through one of primary and, when that provider
-// fails with an error another provider may not share (ShouldFailover: rate
-// limited, quota exceeded, temporary), through the remaining primaries and
-// then through fallback, in order. A permanent or invalid-recipient error
-// is returned at once.
+// fails with an error another provider may not share (ShouldFailover:
+// anything but an invalid recipient), through the remaining primaries and
+// then through fallback, in order. An invalid-recipient error is returned
+// at once.
 //
 // Under RoutingRoundRobin the first provider rotates by weight; under
 // RoutingFailover it is always primary[0]. Fallback providers are never in

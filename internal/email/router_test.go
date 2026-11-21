@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestRouterFailsOverOnlyOnSharedErrors(t *testing.T) {
+func TestRouterFailsOverOnEverythingButAnInvalidRecipient(t *testing.T) {
 	for _, tc := range []struct {
 		err          error
 		wantFallback bool
@@ -17,9 +17,9 @@ func TestRouterFailsOverOnlyOnSharedErrors(t *testing.T) {
 		{Classify("resend", ErrRateLimited, errors.New("429")), true},
 		{Classify("resend", ErrQuotaExceeded, errors.New("daily quota")), true},
 		{fmt.Errorf("send: %w", Classify("smtp", ErrTemporary, errors.New("connect"))), true},
-		{Classify("resend", ErrPermanent, errors.New("domain not verified")), false},
+		{Classify("brevo", ErrPermanent, errors.New("401 unrecognised IP address")), true},
+		{errors.New("unclassified"), true},
 		{Classify("resend", ErrInvalidRecipient, errors.New("bad to")), false},
-		{errors.New("unclassified"), false},
 	} {
 		primary := &recordingSender{name: "primary", errs: []error{tc.err}}
 		fallback := &recordingSender{name: "fallback"}
@@ -42,10 +42,11 @@ func TestRouterReportsEveryProviderTried(t *testing.T) {
 		{Name: "a", Sender: &recordingSender{errs: []error{Classify("a", ErrRateLimited, errors.New("429"))}}},
 		{Name: "b", Sender: &recordingSender{errs: []error{Classify("b", ErrTemporary, errors.New("503"))}}},
 	}, []Route{
-		{Name: "c", Sender: &recordingSender{errs: []error{Classify("c", ErrPermanent, errors.New("denied"))}}},
+		{Name: "c", Sender: &recordingSender{errs: []error{Classify("c", ErrInvalidRecipient, errors.New("no such user"))}}},
+		{Name: "d", Sender: &recordingSender{}},
 	}, RouterOptions{})
 	_, err := sender.Send(context.Background(), testMessage())
-	if !errors.Is(err, ErrPermanent) || !strings.Contains(err.Error(), "providers tried: a rate_limited, b temporary, c permanent") {
+	if !errors.Is(err, ErrInvalidRecipient) || !strings.Contains(err.Error(), "providers tried: a rate_limited, b temporary, c invalid_recipient") {
 		t.Fatalf("err = %v", err)
 	}
 }
