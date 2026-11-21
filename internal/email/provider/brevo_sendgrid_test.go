@@ -134,7 +134,7 @@ func TestBrevoRequestShape(t *testing.T) {
 		"subject":     msg.Subject,
 		"htmlContent": msg.HTML,
 		"textContent": msg.Text,
-		"headers":     map[string]any{"List-Unsubscribe": "<https://hoanxu.com/u>", "idempotencyKey": "cashback_paid:abc"},
+		"headers":     map[string]any{"List-Unsubscribe": "<https://hoanxu.com/u>", "idempotencyKey": brevoIdempotencyKey("cashback_paid:abc")},
 		"tags":        []any{"cashback_paid", "server:hoantien_work"},
 	}
 	if !reflect.DeepEqual(body, want) {
@@ -185,6 +185,17 @@ func TestSendGridRequestShape(t *testing.T) {
 	}
 	if !reflect.DeepEqual(body, want) {
 		t.Fatalf("body\n%#v\nwant\n%#v", body, want)
+	}
+}
+
+func TestBrevoIdempotencyKeyFitsBrevosLimit(t *testing.T) {
+	long := "cashback_paid:4b0f9c1e-2d3a-4c5b-9e8f-7a6b5c4d3e2f"
+	got := brevoIdempotencyKey(long)
+	if len(got) != 32 || got != brevoIdempotencyKey(long) {
+		t.Fatalf("key %q", got)
+	}
+	if got == brevoIdempotencyKey("cashback_paid:4b0f9c1e-2d3a-4c5b-9e8f-7a6b5c4d3e30") {
+		t.Fatal("different keys must not collide")
 	}
 }
 

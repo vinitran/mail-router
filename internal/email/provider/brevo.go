@@ -3,6 +3,8 @@ package provider
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -117,7 +119,7 @@ func (b *Brevo) Send(ctx context.Context, msg email.Message) (email.Result, erro
 			payload.Headers[k] = v
 		}
 		if msg.IdempotencyKey != "" && !b.cfg.SkipIdempotencyKey {
-			payload.Headers["idempotencyKey"] = msg.IdempotencyKey
+			payload.Headers["idempotencyKey"] = brevoIdempotencyKey(msg.IdempotencyKey)
 		}
 	}
 	body, err := json.Marshal(payload)
@@ -170,6 +172,16 @@ func classifyBrevo(status int, code, message string) error {
 	default:
 		return email.ErrPermanent // unauthorized, invalid parameters, ...
 	}
+}
+
+// brevoIdempotencyKey fits a caller's key into Brevo's idempotencyKey,
+// which rejects long values ("out_of_range: Idempotency key exceeds char
+// limit"; api-core keys such as "cashback_paid:<uuid>" are 50 characters).
+// The same key always gives the same 32 hex characters, so Brevo still
+// drops the duplicate.
+func brevoIdempotencyKey(key string) string {
+	sum := sha256.Sum256([]byte(key))
+	return hex.EncodeToString(sum[:16])
 }
 
 // brevoTags turns Category and Tags into Brevo tags ("name" for Category,
