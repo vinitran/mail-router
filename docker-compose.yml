@@ -1,0 +1,45 @@
+# mail-router: delivers email for api-core. Runs next to api-core on each
+# server (hoanxu.com, hoantien.work) and joins api-core's Docker network, so
+# api-core reaches it at http://mail-router:8080. See README.md.
+name: mail-router
+
+services:
+  mail-router:
+    image: ${MAIL_ROUTER_IMAGE:-docker.io/vinitran/mail-router:latest}
+    build: .
+    container_name: mail-router
+    restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    env_file:
+      - .env
+    environment:
+      MAIL_ROUTER_ADDR: ":8080"
+      GOMEMLIMIT: 48MiB
+    # Not public: api-core uses the Docker network. The host port, bound to
+    # 127.0.0.1 only, is for checks from the server itself (curl /healthz).
+    ports:
+      - "127.0.0.1:${MAIL_ROUTER_HOST_PORT:-8090}:8080"
+    mem_limit: 64m
+    healthcheck:
+      test: ["CMD", "/mail-router", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      core:
+        aliases:
+          - mail-router
+
+networks:
+  core:
+    # api-core's network: "<api-core compose project>_api-core-network".
+    # Find it with: docker network ls | grep api-core-network
+    external: true
+    name: ${CORE_NETWORK:?set CORE_NETWORK in .env to api-core's Docker network (docker network ls | grep api-core-network)}
